@@ -1,0 +1,120 @@
+// Prisma schema for bt scheduler MVP
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  scheduler
+  member
+}
+
+enum DepType {
+  FS
+  SS
+  FF
+  SF
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(scheduler)
+  createdAt DateTime @default(now()) @map("created_at")
+  tasks     Task[]   @relation("CreatorTasks")
+  assignments TaskAssignment[]
+  logs      AuditLog[]
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("active")
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  tasks     Task[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String   @map("project_id")
+  name        String
+  description String?
+  status      String   @default("planned")
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  durationDays Int     @default(1) @map("duration_days")
+  progress    Int      @default(0)
+  createdBy   User?    @relation("CreatorTasks", fields: [createdById], references: [id])
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  assignments TaskAssignment[]
+  preds       TaskDependency[] @relation("Predecessor")
+  succs       TaskDependency[] @relation("Successor")
+}
+
+model TaskAssignment {
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String @map("task_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  @@id([taskId, userId])
+  @@map("task_assignments")
+}
+
+model TaskDependency {
+  id     String  @id @default(uuid())
+  pred   Task    @relation("Predecessor", fields: [predecessorTaskId], references: [id], onDelete: Cascade)
+  predecessorTaskId String @map("predecessor_task_id")
+  succ   Task    @relation("Successor", fields: [successorTaskId], references: [id], onDelete: Cascade)
+  successorTaskId String @map("successor_task_id")
+  type   DepType @default(FS)
+  lagDays Int    @default(0) @map("lag_days")
+
+  @@map("task_dependencies")
+}
+
+model Calendar {
+  id       String @id @default(uuid())
+  name     String @default("Default")
+  timezone String @default("America/Los_Angeles")
+  mon      Boolean @default(true)
+  tue      Boolean @default(true)
+  wed      Boolean @default(true)
+  thu      Boolean @default(true)
+  fri      Boolean @default(true)
+  sat      Boolean @default(false)
+  sun      Boolean @default(false)
+
+  holidays Holiday[]
+}
+
+model Holiday {
+  id         String   @id @default(uuid())
+  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  calendarId String   @map("calendar_id")
+  date       DateTime
+  name       String
+}
+
+model AuditLog {
+  id       String   @id @default(uuid())
+  user     User?    @relation(fields: [userId], references: [id])
+  userId   String?  @map("user_id")
+  entity   String
+  entityId String   @map("entity_id")
+  action   String
+  details  Json?
+  at       DateTime @default(now())
+  @@map("audit_log")
+}
