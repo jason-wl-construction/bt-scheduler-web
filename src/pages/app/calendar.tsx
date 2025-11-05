@@ -56,6 +56,8 @@ export default function CalendarPage() {
     right: 'dayGridMonth,timeGridWeek,timeGridDay'
   }}
   events={events}
+  selectable={true}
+  dateClick={(info: any) => alert(`Date clicked: ${info.dateStr}`)}
   eventClick={(info: any) => alert(`Clicked: ${info.event.title}`)}
   editable={true}
   eventStartEditable={true}          // ← add this line
