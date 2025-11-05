@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
     if (endForDb) data.end_date = endForDb;
 
-    const updated = await prisma.tasks.update({
+    const updated = await prisma.task.update({
       where: { id: Number(id) },
       data,
       select: { id: true },
