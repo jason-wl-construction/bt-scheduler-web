@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { fetchEvents } from '../../utils/api'
 
 // FullCalendar
-const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false });
+const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false })
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -32,7 +32,6 @@ export default function CalendarPage() {
         const msg = await res.text()
         throw new Error(`Save failed: ${msg}`)
       }
-      // refresh events after save
       const refreshed = await fetchEvents()
       setEvents(refreshed)
     } catch (e) {
@@ -43,42 +42,43 @@ export default function CalendarPage() {
     }
   }
 
- return (
-  <main style={{ padding: 16 }}>
-    <h1>Calendar {saving ? '· saving…' : ''}</h1>
+  return (
+    <main style={{ padding: 16 }}>
+      <h1>Calendar {saving ? '· saving…' : ''}</h1>
 
-    <div style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}>
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        }}
-        height="auto"
-        events={events}
-        editable={true}
-        eventStartEditable={true}
-        eventDurationEditable={true}
-        eventResizableFromStart={true}
-        selectable={true}
-        dateClick={(info: any) => alert(`Date clicked: ${info.dateStr}`)}
-        eventClick={(info: any) => alert(`Clicked: ${info.event.title}`)}
-        eventDrop={(info: any) => {
-          const id = info.event.id
-          const start = info.event.start!
-          const end = info.event.end ?? start
-          saveDates(id, start, end)
-        }}
-        eventResize={(info: any) => {
-          const id = info.event.id
-          const start = info.event.start!
-          const end = info.event.end ?? start
-          saveDates(id, start, end)
-        }}
-        longPressDelay={0}
-      />
-    </div>
-  </main>
-)
+      <div style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}>
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+          }}
+          height="auto"
+          events={events}
+          editable={true}
+          eventStartEditable={true}
+          eventDurationEditable={true}
+          eventResizableFromStart={true}
+          selectable={true}
+          dateClick={(info: any) => alert(`Date clicked: ${info.dateStr}`)}
+          eventClick={(info: any) => alert(`Clicked: ${info.event.title}`)}
+          eventDrop={(info: any) => {
+            const id = info.event.id
+            const start = info.event.start!
+            const end = info.event.end ?? start
+            saveDates(id, start, end)
+          }}
+          eventResize={(info: any) => {
+            const id = info.event.id
+            const start = info.event.start!
+            const end = info.event.end ?? start
+            saveDates(id, start, end)
+          }}
+          longPressDelay={0}
+        />
+      </div>
+    </main>
+  )
+}
