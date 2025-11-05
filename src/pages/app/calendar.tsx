@@ -2,7 +2,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { fetchEvents } from '../../utils/api'
 
-// FullCalendar (loaded only in the browser)
+// FullCalendar (browser-only)
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false })
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -27,7 +27,8 @@ export default function CalendarPage() {
       .catch(console.error)
   }, [])
 
-  async function saveDates(id: string, start: Date, end: Date) {
+  // NOTE: allDay is important so the API can convert end (exclusive) to date-only end (inclusive)
+  async function saveDates(id: string, start: Date, end: Date, allDay: boolean) {
     setSaving(true)
     try {
       const res = await fetch('/api/task/update', {
@@ -37,6 +38,7 @@ export default function CalendarPage() {
           id,
           start: start.toISOString(),
           end: end.toISOString(),
+          allDay, // ← send the flag
         }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -65,23 +67,28 @@ export default function CalendarPage() {
           }}
           height="auto"
           events={events as any}
+          // make items draggable/resizable
           editable={true}
           eventStartEditable={true}
           eventDurationEditable={true}
           eventResizableFromStart={true}
           selectable={true}
           longPressDelay={0}
+          // save when an event is dragged
           eventDrop={(info: any) => {
             const id = String(info.event.id)
             const start = info.event.start as Date
             const end = (info.event.end as Date) ?? start
-            saveDates(id, start, end)
+            const allDay = !!info.event.allDay
+            saveDates(id, start, end, allDay)
           }}
+          // save when an event is resized
           eventResize={(info: any) => {
             const id = String(info.event.id)
             const start = info.event.start as Date
             const end = (info.event.end as Date) ?? start
-            saveDates(id, start, end)
+            const allDay = !!info.event.allDay
+            saveDates(id, start, end, allDay)
           }}
         />
       </div>
