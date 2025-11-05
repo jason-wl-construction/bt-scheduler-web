@@ -1,6 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { PrismaClient } from '@prisma/client'
 
+// Make an all-day exclusive end (from FullCalendar) into an inclusive end for DB storage
+function exclusiveEndToInclusive(endStrOrDate: string | Date | null | undefined) {
+  if (!endStrOrDate) return null;
+  const d = typeof endStrOrDate === "string" ? new Date(endStrOrDate) : new Date(endStrOrDate);
+  if (isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() - 1); // subtract one day
+  // snap to midnight to avoid timezone drift
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 const prisma = new PrismaClient()
 
 function toDateOnly(d: Date) {
