@@ -11,14 +11,17 @@ function toDateOnly(d: Date) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-// ===== DEBUG: log what FullCalendar sent and the server timezone
+// ===== DEBUG: log request details as strings
 try {
-  console.log("fc:update:raw-body", req.body);
+  console.log("fc:update:method", req.method);
+  console.log("fc:update:content-type", req.headers["content-type"] || "");
+  console.log("fc:update:raw-body", JSON.stringify(req.body));
   console.log("fc:update:tz-offset-minutes", new Date().getTimezoneOffset());
 } catch (e) {
   console.log("fc:update:debug-log-error", e);
 }
 // ===== END DEBUG
+
 
   if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' })
 
