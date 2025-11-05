@@ -48,33 +48,34 @@ export default function CalendarPage() {
       <h1>Calendar {saving ? '· saving…' : ''}</h1>
 
       <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        }}
-        events={events}
-        editable={true}
-        eventDurationEditable={true}
-        eventResizableFromStart={true}
-        // drag/drop a whole event to a new day
-        eventDrop={(info: any) => {
-          const id = info.event.id
-          const start = info.event.start!
-          // FullCalendar end is exclusive; if null, fallback to start
-          const end = info.event.end ?? start
-          saveDates(id, start, end)
-        }}
-        // resize left/right edge to change end date
-        eventResize={(info: any) => {
-          const id = info.event.id
-          const start = info.event.start!
-          const end = info.event.end ?? start
-          saveDates(id, start, end)
-        }}
-      />
+  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+  initialView="dayGridMonth"
+  headerToolbar={{
+    left: 'prev,next today',
+    center: 'title',
+    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+  }}
+  events={events}
+  editable={true}
+  eventStartEditable={true}          // ← add this line
+  eventDurationEditable={true}
+  eventResizableFromStart={true}
+  // drag/drop a whole event to a new day
+  eventDrop={(info: any) => {
+    const id = info.event.id
+    const start = info.event.start!
+    // FullCalendar end is exclusive; if null, fallback to start
+    const end = info.event.end ?? start
+    saveDates(id, start, end)
+  }}
+  // resize left/right edge to change end date
+  eventResize={(info: any) => {
+    const id = info.event.id
+    const start = info.event.start!
+    const end = info.event.end ?? start
+    saveDates(id, start, end)
+  }}
+/>
 
       {/* quick debug preview */}
       <pre>{JSON.stringify(events.slice(0,5), null, 2)}</pre>
