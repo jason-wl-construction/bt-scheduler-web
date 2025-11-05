@@ -1,72 +1,82 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { PrismaClient } from '@prisma/client'
+import type { NextApiRequest, NextApiResponse } from "next";
+import { PrismaClient } from "@prisma/client";
 
-// Make an all-day exclusive end (from FullCalendar) into an inclusive end for DB storage
-function exclusiveEndToInclusive(endStrOrDate: string | Date | null | undefined) {
-  if (!endStrOrDate) return null;
-  const d = typeof endStrOrDate === "string" ? new Date(endStrOrDate) : new Date(endStrOrDate);
+const prisma = new PrismaClient();
+
+// ---- Helpers ---------------------------------------------------------------
+// FullCalendar sends all-day events with an *exclusive* end (day after the last visible day).
+// We store an *inclusive* end in the DB: last visible day at 00:00.
+function exclusiveEndToInclusive(endInput: string | Date | null | undefined): Date | null {
+  if (!endInput) return null;
+  const d = new Date(endInput);
   if (isNaN(d.getTime())) return null;
-  d.setDate(d.getDate() - 1); // subtract one day
-  // snap to midnight to avoid timezone drift
+  d.setDate(d.getDate() - 1); // subtract one calendar day
+  d.setHours(0, 0, 0, 0); // snap to midnight to avoid TZ drift
+  return d;
+}
+
+function normalizeAllDayStart(startInput: string | Date): Date {
+  const d = new Date(startInput);
+  if (isNaN(d.getTime())) throw new Error("Invalid start date");
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-const prisma = new PrismaClient()
-
-function toDateOnly(d: Date) {
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(d.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+// For timed events we keep the timestamps as-is.
+function asDate(input: string | Date): Date {
+  const d = new Date(input);
+  if (isNaN(d.getTime())) throw new Error("Invalid date");
+  return d;
 }
 
+// ---- Route ----------------------------------------------------------------
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-// ===== DEBUG: log request details as strings
-try {
-  console.log("fc:update:method", req.method);
-  console.log("fc:update:content-type", req.headers["content-type"] || "");
-  console.log("fc:update:raw-body", JSON.stringify(req.body));
-  console.log("fc:update:tz-offset-minutes", new Date().getTimezoneOffset());
-} catch (e) {
-  console.log("fc:update:debug-log-error", e);
-}
-// ===== END DEBUG
+  // Minimal, readable logging to help diagnose off-by-one issues
+  try {
+    console.log("fc:update:method", req.method);
+    console.log("fc:update:raw-body", JSON.stringify(req.body));
+    console.log("fc:update:tz-offset-minutes", new Date().getTimezoneOffset());
+  } catch {}
 
-
-  if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== "PUT" && req.method !== "POST") {
+    res.setHeader("Allow", ["PUT", "POST"]);
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
 
   try {
-    const { id, start, end, allDay } = req.body as {
-      id: string
-      start: string
-      end: string
-      allDay?: boolean
-    }
-    if (!id || !start || !end) {
-      return res.status(400).json({ error: 'Missing id, start, or end' })
-    }
+    const { id, start, end, allDay } = req.body || {};
 
-    const startDt = new Date(start)
-    let endDt = new Date(end)
+    if (!id) return res.status(400).json({ error: "Missing id" });
+    if (!start) return res.status(400).json({ error: "Missing start" });
 
-    // FullCalendar all-day gives EXCLUSIVE end; convert to INCLUSIVE for our DATE columns
+    let startForDb: Date;
+    let endForDb: Date | null = null;
+
     if (allDay) {
-      const e = new Date(endDt)
-      e.setUTCDate(e.getUTCDate() - 1)
-      endDt = e
+      // All-day: start snapped to midnight, end converted from exclusive→inclusive
+      startForDb = normalizeAllDayStart(start);
+      endForDb = exclusiveEndToInclusive(end ?? start);
+    } else {
+      // Timed: keep as-is
+      startForDb = asDate(start);
+      endForDb = end ? asDate(end) : null;
     }
 
-    const updated = await prisma.task.update({
-      where: { id },
-      data: {
-        startDate: new Date(toDateOnly(startDt)),
-        endDate: new Date(toDateOnly(endDt)),
-      },
-    })
+    // Build update payload. We update only date fields to avoid schema assumptions.
+    const data: Record<string, any> = {
+      start_date: startForDb,
+    };
+    if (endForDb) data.end_date = endForDb;
 
-    return res.status(200).json({ ok: true, task: updated })
+    const updated = await prisma.tasks.update({
+      where: { id: Number(id) },
+      data,
+      select: { id: true },
+    });
+
+    return res.status(200).json({ ok: true, id: updated.id });
   } catch (err: any) {
-    return res.status(500).json({ error: err?.message || 'Failed to update task' })
+    console.error("/api/task/update error", err);
+    return res.status(500).json({ error: err?.message ?? "Internal Server Error" });
   }
 }
