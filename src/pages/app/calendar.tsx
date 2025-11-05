@@ -43,45 +43,42 @@ export default function CalendarPage() {
     }
   }
 
-  return (
-    <main style={{ padding: 16 }}>
-      <h1>Calendar {saving ? '· saving…' : ''}</h1>
+ return (
+  <main style={{ padding: 16 }}>
+    <h1>Calendar {saving ? '· saving…' : ''}</h1>
 
+    <div style={{ position: 'relative', zIndex: 10, pointerEvents: 'auto' }}>
       <FullCalendar
-  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-  initialView="dayGridMonth"
-  headerToolbar={{
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-  }}
-  events={events}
-  selectable={true}
-  dateClick={(info: any) => alert(`Date clicked: ${info.dateStr}`)}
-  eventClick={(info: any) => alert(`Clicked: ${info.event.title}`)}
-  editable={true}
-  eventStartEditable={true}          // ← add this line
-  eventDurationEditable={true}
-  eventResizableFromStart={true}
-  // drag/drop a whole event to a new day
-  eventDrop={(info: any) => {
-    const id = info.event.id
-    const start = info.event.start!
-    // FullCalendar end is exclusive; if null, fallback to start
-    const end = info.event.end ?? start
-    saveDates(id, start, end)
-  }}
-  // resize left/right edge to change end date
-  eventResize={(info: any) => {
-    const id = info.event.id
-    const start = info.event.start!
-    const end = info.event.end ?? start
-    saveDates(id, start, end)
-  }}
-/>
-
-      {/* quick debug preview */}
-      <pre>{JSON.stringify(events.slice(0,5), null, 2)}</pre>
-    </main>
-  )
-}
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }}
+        height="auto"
+        events={events}
+        editable={true}
+        eventStartEditable={true}
+        eventDurationEditable={true}
+        eventResizableFromStart={true}
+        selectable={true}
+        dateClick={(info: any) => alert(`Date clicked: ${info.dateStr}`)}
+        eventClick={(info: any) => alert(`Clicked: ${info.event.title}`)}
+        eventDrop={(info: any) => {
+          const id = info.event.id
+          const start = info.event.start!
+          const end = info.event.end ?? start
+          saveDates(id, start, end)
+        }}
+        eventResize={(info: any) => {
+          const id = info.event.id
+          const start = info.event.start!
+          const end = info.event.end ?? start
+          saveDates(id, start, end)
+        }}
+        longPressDelay={0}
+      />
+    </div>
+  </main>
+)
