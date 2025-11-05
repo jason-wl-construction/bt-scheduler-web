@@ -1,81 +1,8 @@
-import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
-import { fetchEvents } from '../../utils/api'
-
-const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false })
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction'
-
-type FCEvent = {
-  id: string
-  title: string
-  start: string | Date
-  end?: string | Date
-  allDay?: boolean
-  extendedProps?: any
-}
-
 export default function CalendarPage() {
-  const [events, setEvents] = useState<FCEvent[]>([])
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    fetchEvents().then((data) => setEvents(data as FCEvent[])).catch(console.error)
-  }, [])
-
-  async function saveDates(id: string, start: Date, end: Date) {
-    setSaving(true)
-    try {
-      const res = await fetch('/api/task/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, start: start.toISOString(), end: end.toISOString() }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      const refreshed = await fetchEvents()
-      setEvents(refreshed as FCEvent[])
-    } catch (e) {
-      console.error(e)
-      alert('Could not save the change.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <main style={{ padding: 16 }}>
-      <h1>Calendar {saving ? '· saving…' : ''}</h1>
-      <div style={{ position: 'relative', zIndex: 10 }}>
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay',
-          }}
-          height="auto"
-          events={events as any}
-          editable={true}
-          eventStartEditable={true}
-          eventDurationEditable={true}
-          eventResizableFromStart={true}
-          selectable={true}
-          eventDrop={(info: any) => {
-            const id = String(info.event.id)
-            const start = info.event.start as Date
-            const end = (info.event.end as Date) ?? start
-            saveDates(id, start, end)
-          }}
-          eventResize={(info: any) => {
-            const id = String(info.event.id)
-            const start = info.event.start as Date
-            const end = (info.event.end as Date) ?? start
-            saveDates(id, start, end)
-          }}
-        />
-      </div>
+      <h1>Calendar test</h1>
+      <p>If you see this, the page compiles.</p>
     </main>
   )
 }
