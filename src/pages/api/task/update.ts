@@ -4,14 +4,13 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // ---- Helpers ---------------------------------------------------------------
-// FullCalendar sends all-day events with an *exclusive* end (day after the last visible day).
-// We store an *inclusive* end in the DB: last visible day at 00:00.
+// Convert FullCalendar all-day *exclusive* end to DB *inclusive* end
 function exclusiveEndToInclusive(endInput: string | Date | null | undefined): Date | null {
   if (!endInput) return null;
   const d = new Date(endInput);
   if (isNaN(d.getTime())) return null;
-  d.setDate(d.getDate() - 1); // subtract one calendar day
-  d.setHours(0, 0, 0, 0); // snap to midnight to avoid TZ drift
+  d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 
@@ -22,16 +21,28 @@ function normalizeAllDayStart(startInput: string | Date): Date {
   return d;
 }
 
-// For timed events we keep the timestamps as-is.
 function asDate(input: string | Date): Date {
   const d = new Date(input);
   if (isNaN(d.getTime())) throw new Error("Invalid date");
   return d;
 }
 
+// Extract a field from many possible client shapes
+function pick<T = any>(obj: any, keys: string[]): T | undefined {
+  for (const k of keys) {
+    const parts = k.split(".");
+    let v: any = obj;
+    let ok = true;
+    for (const p of parts) {
+      if (v && p in v) v = v[p]; else { ok = false; break; }
+    }
+    if (ok && v !== undefined && v !== null) return v as T;
+  }
+  return undefined;
+}
+
 // ---- Route ----------------------------------------------------------------
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Minimal, readable logging to help diagnose off-by-one issues
   try {
     console.log("fc:update:method", req.method);
     console.log("fc:update:raw-body", JSON.stringify(req.body));
@@ -44,7 +55,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { id, start, end, allDay } = req.body || {};
+    // Tolerate various shapes from FullCalendar/client code
+    const id = pick<string>(req.body, ["id", "eventId", "event.id"]);
+    const start = pick<string | Date>(req.body, ["start", "startStr", "startISO", "event.start", "event.startStr"]);
+    const end = pick<string | Date | null>(req.body, ["end", "endStr", "endISO", "event.end", "event.endStr"]);
+    const rawAllDay = pick<any>(req.body, ["allDay", "event.allDay", "isAllDay"]);
+    const allDay = !!rawAllDay;
+
+    // NEW: resolved values log (plain and reliable)
+    console.log("fc:update:resolved", JSON.stringify({ id, start, end, allDay }));
 
     if (!id) return res.status(400).json({ error: "Missing id" });
     if (!start) return res.status(400).json({ error: "Missing start" });
@@ -53,19 +72,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let endForDb: Date | null = null;
 
     if (allDay) {
-      // All-day: start snapped to midnight, end converted from exclusive→inclusive
       startForDb = normalizeAllDayStart(start);
       endForDb = exclusiveEndToInclusive(end ?? start);
     } else {
-      // Timed: keep as-is
       startForDb = asDate(start);
       endForDb = end ? asDate(end) : null;
     }
 
-    // Build update payload. We update only date fields to avoid schema assumptions.
-    const data: Record<string, any> = {
-      start_date: startForDb,
-    };
+    const data: Record<string, any> = { start_date: startForDb };
     if (endForDb) data.end_date = endForDb;
 
     const updated = await prisma.task.update({
